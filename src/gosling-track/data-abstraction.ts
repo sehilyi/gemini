@@ -1,5 +1,6 @@
 import { Datum, SingleTrack } from '../core/gosling.schema';
 import { IsDataDeepTileset } from '../core/gosling.schema.guards';
+import Logging from '../core/utils/log';
 
 /**
  * Convert genomic data formats to common tabular formats for given tile.
@@ -11,7 +12,9 @@ export function getTabularData(
         raw?: Datum[];
         shape?: [number, number];
         tileX: number;
+        tileY?: number; // Used for 2D tracks
         tileWidth: number;
+        tileHeight?: number; // Used for 2D tracks
         tileSize: number;
     }
 ) {
@@ -162,6 +165,75 @@ export function getTabularData(
                 }
             });
         });
+    } else if (spec.data.type === 'matrix') {
+        if (!data.dense || typeof data.tileY === 'undefined' || typeof data.tileHeight === 'undefined') {
+            // we did not get sufficient data.
+            return;
+        }
+
+        console.log(data);
+        const binSize = Math.sqrt(data.dense.length);
+
+        if (binSize !== 256) {
+            console.warn('The bin size of the matrix tilesets is not 256');
+        }
+
+        const { tileX, tileY } = data;
+        const tileSize = 256;
+        const numericValues = data.dense;
+        const tileXUnitSize = data.tileWidth / tileSize;
+        const tileYUnitSize = data.tileHeight / tileSize;
+
+        console.log(tileXUnitSize, tileYUnitSize, tileSize, data.tileWidth);
+
+        Logging.recordTime('matrix-processing');
+
+        numericValues.forEach((value, i) => {
+            const xIndex = i % binSize;
+            const yIndex = Math.floor(i / binSize);
+
+            console.log(xIndex, yIndex, value);
+
+            // add individual rows
+            tabularData.push({
+                value,
+                x: tileX + (xIndex + 0.5) * tileXUnitSize,
+                xs: tileX + xIndex * tileXUnitSize,
+                xe: tileX + (xIndex + 1) * tileXUnitSize,
+                y: tileY + (yIndex + 0.5) * tileYUnitSize,
+                ys: tileY + yIndex * tileYUnitSize,
+                ye: tileY + (yIndex + 1) * tileYUnitSize
+            });
+        });
+
+        Logging.printTime('matrix-processing');
+
+        console.log(tabularData);
+
+        // // calculate the tile's position in bins
+        // const tileXStartBin = Math.floor(data.tileX / data.tileRes);
+        // const tileXEndBin = Math.floor((data.tileX + data.tileWidth) / data.tileRes);
+        // const tileYStartBin = Math.floor(data.tileY / data.tileRes);
+        // const tileYEndBin = Math.floor((data.tileY + data.tileHeight) / data.tileRes);
+
+        // // calculate which part of this tile is present in the current window
+        // let tileSliceXStart = Math.max(leftXBin, tileXStartBin) - tileXStartBin;
+        // let tileSliceYStart = Math.max(leftYBin, tileYStartBin) - tileYStartBin;
+        // const tileSliceXEnd =
+        //     Math.min(leftXBin + binWidth, tileXEndBin) - tileXStartBin;
+        // const tileSliceYEnd =
+        //     Math.min(leftYBin + binHeight, tileYEndBin) - tileYStartBin;
+
+        // // where in the output array will the portion of this tile which is in the visible window be placed?
+        // const tileXOffset = Math.max(tileXStartBin - leftXBin, 0);
+        // const tileYOffset = Math.max(tileYStartBin - leftYBin, 0);
+        // const tileSliceWidth = tileSliceXEnd - tileSliceXStart;
+        // const tileSliceHeight = tileSliceYEnd - tileSliceYStart;
+
+        // // the region is outside of this tile
+        // if (tileSliceWidth < 0 || tileSliceHeight < 0) {
+        //     return;
+        // }
     } else if (spec.data.type === 'beddb') {
         if (!data.raw) {
             // we did not get sufficient data.

@@ -430,12 +430,12 @@ export interface BAMData {
     url: string;
 }
 
-/* ----------------------------- DATA TRANSFORM ----------------------------- */
 export interface MatrixData {
     type: 'matrix';
     url: string;
 }
 
+/* ----------------------------- DATA TRANSFORM ----------------------------- */
 export type DataTransform =
     | FilterTransform
     | StrConcatTransform
@@ -443,6 +443,7 @@ export type DataTransform =
     | LogTransform
     | DisplaceTransform
     | ExonSplitTransform
+    | RotateMatrixTransform
     | CoverageTransform
     | JSONParseTransform;
 
@@ -513,6 +514,15 @@ export interface ExonSplitTransform {
     separator: string;
     flag: { field: string; value: number | string };
     fields: { field: string; type: FieldType; newField: string; chrField: string }[];
+}
+
+export interface RotateMatrixTransform {
+    type: 'rotateMatrix';
+    genomicField1: string;
+    genomicField2: string;
+    // Currently concatenate a post string, '_rotated'
+    // newField1: string;
+    // newField2: string;
 }
 
 /**
